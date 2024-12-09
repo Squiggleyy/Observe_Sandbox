@@ -1,0 +1,15 @@
+make_col
+  ttl:if(job = "submit_scheduled_report", 3h, 1m),
+
+  state:case(
+    job = "submit_scheduled_report", "in progress",
+    job = "deliver_scheduled_report", "complete",
+    job = "timeout_scheduled_report", "failed",
+    true, "unknown")
+    
+make_resource options(expiry:3h),
+  job,
+  job_id,
+  state,
+  primary_key(report_id),
+  valid_for(ttl)

@@ -1,0 +1,124 @@
+apiVersion: v1
+data:
+  relay: |
+    exporters:
+      debug: {}
+      otlphttp:
+        endpoint: 'https://100112502756.collect.observeinc.com/v2/otel'
+        headers:
+          authorization: Bearer ${OBSERVE_TOKEN}
+        retry_on_failure:
+          enabled: true
+        sending_queue:
+          num_consumers: 4
+          queue_size: 100
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+      zpages: {}
+    processors:
+      batch: {}
+      k8sattributes:
+        auth_type: serviceAccount
+        extract:
+          metadata:
+          - k8s.pod.name
+          - k8s.namespace.name
+          - k8s.cluster.uid
+        passthrough: false
+        pod_association:
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.ip
+        - sources:
+          - from: connection
+      memory_limiter:
+        check_interval: 5s
+        limit_mib: 192
+        limit_percentage: 80
+        spike_limit_mib: 100
+        spike_limit_percentage: 25
+      probabilistic_sampler:
+        hash_seed: 22
+        sampling_percentage: 100
+    receivers:
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: ${env:MY_POD_IP}:14250
+          thrift_compact:
+            endpoint: ${env:MY_POD_IP}:6831
+          thrift_http:
+            endpoint: ${env:MY_POD_IP}:14268
+      otlp:
+        protocols:
+          grpc:
+            endpoint: ${env:MY_POD_IP}:4317
+          http:
+            endpoint: ${env:MY_POD_IP}:4318
+      prometheus:
+        config:
+          scrape_configs:
+          - job_name: opentelemetry-collector
+            scrape_interval: 10s
+            static_configs:
+            - targets:
+              - ${env:MY_POD_IP}:8888
+      zipkin:
+        endpoint: ${env:MY_POD_IP}:9411
+    service:
+      extensions:
+      - health_check
+      pipelines:
+        logs:
+          exporters:
+          - otlphttp
+          - debug
+          processors:
+          - k8sattributes
+          - memory_limiter
+          - batch
+          receivers:
+          - otlp
+        metrics:
+          exporters:
+          - otlphttp
+          - debug
+          processors:
+          - k8sattributes
+          - memory_limiter
+          - batch
+          receivers:
+          - otlp
+        traces:
+          exporters:
+          - otlphttp
+          - debug
+          processors:
+          - probabilistic_sampler
+          - k8sattributes
+          - memory_limiter
+          - batch
+          receivers:
+          - otlp
+          - zipkin
+      telemetry:
+        metrics:
+          address: ${env:MY_POD_IP}:8888
+kind: ConfigMap
+metadata:
+  annotations:
+    meta.helm.sh/release-name: observe-traces
+    meta.helm.sh/release-namespace: observe
+  creationTimestamp: "2024-12-03T15:51:50Z"
+  labels:
+    app.kubernetes.io/component: agent-collector
+    app.kubernetes.io/instance: observe-traces
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traces
+    app.kubernetes.io/version: 0.114.0
+    helm.sh/chart: opentelemetry-collector-0.110.3
+  name: observe-traces-agent
+  namespace: observe
+  resourceVersion: "653621"
+  uid: b74f7ac2-1d34-4f3d-9184-eac5b45e2132

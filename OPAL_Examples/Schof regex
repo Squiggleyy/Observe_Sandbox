@@ -1,0 +1,9 @@
+//https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
+make_col message:replace_regex(log,/\x{001b}\[H\w\x{001b}/,"\x{001b}")
+make_col message:replace_regex(message,
+  /\x{001b}/
+  /[\[\(]?/
+  /\??/
+  /(\d+|\d+;\d+)?/
+  /[a-zA-Z@=>]/,"")
+make_col message:replace_regex(message,/\x{001b}\][02];.*(\x{0007}|\x{001b}\x{005c})/,"")

@@ -1,0 +1,14 @@
+filter message ~ 'failed to instantiate client' or message ~ ': already running'
+rename_col task_id:job_id
+
+make_col
+  account_id:trim(split_part(message, ":", 2)),
+  provider:trim(split_part(message, ":", 1))
+
+//extract_regex message, /(?P<account_id>\d+): linkedin_download_creatives: (?P<status>.+)/
+filter not is_null(account_id) and not is_null(task_id)
+
+
+timechart options(empty_bins:true), A_CeleryLogs_count:count(), group_by(task_id)
+
+//group_by(task_id:if_null(int64(task_id), 0))
